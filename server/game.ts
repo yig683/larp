@@ -141,6 +141,7 @@ export class Game {
   private nextKid = ID.kidBase;
   private nextGuard = ID.guardBase;
   private lastKey = -999;
+  private forced = false;
 
   readonly countSys: CountSystem;
   readonly propSys: PropSystem;
@@ -567,7 +568,7 @@ export class Game {
     if (this.result) return;
     const oc = this.scene.outcome(this);
     const limit = this.scene.timeLimit * this.tuning.timeMult;
-    const timeUp = limit > 0 && this.time >= limit;
+    const timeUp = this.forced || (limit > 0 && this.time >= limit);
     const allOut = this.counts.length > 0 && this.counts.every((c) => c.mode === 'failed');
     if (!oc && !timeUp && !allOut) return;
     const perStack = oc?.perStack ?? this.counts.map(() => false);
@@ -617,7 +618,7 @@ export class Game {
   }
 
   /** Tüm cisimleri içeren (full) ya da yalnızca değişenleri içeren snapshot. */
-  buildSnapshot(full: boolean): Snapshot {
+  buildSnapshot(full: boolean, commit = true): Snapshot {
     const bodies: BodyState[] = [];
     const conts: ContState[] = [];
     const chars: CharState[] = [];
@@ -641,32 +642,38 @@ export class Game {
         Math.abs(q.w - s.qw) > 0.004;
       if (full || moved) {
         bodies.push({ id: p.id, x: t.x, y: t.y, z: t.z, qx: q.x, qy: q.y, qz: q.z, qw: q.w });
-        s.x = t.x;
-        s.y = t.y;
-        s.z = t.z;
-        s.qx = q.x;
-        s.qy = q.y;
-        s.qz = q.z;
-        s.qw = q.w;
+        if (commit) {
+          s.x = t.x;
+          s.y = t.y;
+          s.z = t.z;
+          s.qx = q.x;
+          s.qy = q.y;
+          s.qz = q.z;
+          s.qw = q.w;
+        }
       }
       if (p.kind.container) {
         const cs = p.sent;
         if (full || Math.abs(p.load - cs.load) > 0.004 || Math.abs(p.slosh.x - cs.sx) > 0.02 || Math.abs(p.slosh.z - cs.sz) > 0.02) {
           conts.push({ id: p.id, load: p.load / p.kind.container.cap, sx: p.slosh.x, sz: p.slosh.z });
-          cs.load = p.load;
-          cs.sx = p.slosh.x;
-          cs.sz = p.slosh.z;
+          if (commit) {
+            cs.load = p.load;
+            cs.sx = p.slosh.x;
+            cs.sz = p.slosh.z;
+          }
         }
       }
     }
     const pushChar = (id: number, x: number, z: number, yaw: number, st: number, aux: number, sent: { x: number; z: number; yaw: number; st: number; aux: number }): void => {
       if (full || Math.abs(x - sent.x) > 0.004 || Math.abs(z - sent.z) > 0.004 || Math.abs(wrapPi(yaw - sent.yaw)) > 0.01 || st !== sent.st || aux !== sent.aux) {
         chars.push({ id, x, z, yaw, st, aux });
-        sent.x = x;
-        sent.z = z;
-        sent.yaw = yaw;
-        sent.st = st;
-        sent.aux = aux;
+        if (commit) {
+          sent.x = x;
+          sent.z = z;
+          sent.yaw = yaw;
+          sent.st = st;
+          sent.aux = aux;
+        }
       }
     };
     for (const n of this.npcs.values()) pushChar(n.id, n.x, n.z, n.yaw, n.st, n.aux, n.sent);
@@ -697,6 +704,17 @@ export class Game {
       };
     });
     return { tick: this.tick, bodies, chars, counts, conts };
+  }
+
+  /** Ev sahibi sahneyi erken bitirir (süre doldu gibi). */
+  forceFinish(): void {
+    this.forced = true;
+  }
+
+  wheelMsg(stack: number): { t: 'wheel'; stack: number; q: string; phrases: Array<{ i: number; text: string }> } | null {
+    const w = this.wheels[stack];
+    if (!w) return null;
+    return { t: 'wheel', stack, q: w.q ? w.q.text : '', phrases: w.offered.map((id) => ({ i: id, text: PHRASES[id]!.text })) };
   }
 
   /** Anahtar snapshot zamanı geldi mi. */
