@@ -35,6 +35,8 @@ export class Bot {
   snap: Snapshot | null = null;
   snapCount = 0;
   snapTimes: number[] = [];
+  /** Sunucudan gelen toplam bayt (bant genişliği ölçümü için). */
+  bytesIn = 0;
   events: GameEvent[] = [];
   wheel: { stack: number; q: string; phrases: Array<{ i: number; text: string }> } | null = null;
   result: SceneResult | null = null;
@@ -74,6 +76,7 @@ export class Bot {
         this.check();
       });
       this.ws.on('message', (data, isBinary) => {
+        this.bytesIn += isBinary ? (data as ArrayBuffer).byteLength : Buffer.byteLength(data.toString());
         if (isBinary) {
           const s = decodeSnapshot(data as ArrayBuffer);
           if (s) {
