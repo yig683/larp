@@ -43,7 +43,7 @@ export const PROP_KINDS: Record<string, PropKind> = {
     friction: 0.8,
     restitution: 0.05,
     grab: true,
-    hold: { fwd: 0.1, up: 0.0, mode: 'spoon', pitch: 0.22 },
+    hold: { fwd: 0.3, up: -0.12, mode: 'spoon', pitch: 0.05 },
     container: { cap: 1, liquid: 'soup', scoop: true, initial: 0 },
     tip: [0, 0.012, -0.13],
   },

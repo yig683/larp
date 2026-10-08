@@ -62,6 +62,8 @@ export const G = {
   GUARD: 1 << 8,
   HELD0: 1 << 9,
   HELD1: 1 << 10,
+  BOWL: 1 << 11,
+  SPOON: 1 << 12,
 } as const;
 export const G_ALL = 0xffff;
 export const groups = (member: number, filter: number): number => ((member & 0xffff) << 16) | (filter & 0xffff);

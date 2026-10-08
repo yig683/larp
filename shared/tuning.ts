@@ -26,6 +26,8 @@ export interface Tuning {
   sloshGain: number;
   spillThreshold: number;
   spillRate: number;
+  flingAccel: number;
+  flingRate: number;
   swayAccel: number;
   // Şüphe
   suspMult: number;
@@ -64,6 +66,8 @@ export const TUNING_DEFAULTS: Tuning = {
   sloshGain: 0.085,
   spillThreshold: 0.46,
   spillRate: 2.2,
+  flingAccel: 16,
+  flingRate: 0.05,
   swayAccel: 3.2,
   suspMult: 1,
   suspDecay: 0.8,
@@ -108,6 +112,8 @@ export const TUNE_DEFS: TuneDef[] = [
   { key: 'sloshGain', label: 'Sıvı duyarlılığı', group: 'Sıvı', min: 0.02, max: 0.3, step: 0.005 },
   { key: 'spillThreshold', label: 'Dökülme eşiği (rad)', group: 'Sıvı', min: 0.15, max: 1.2, step: 0.02 },
   { key: 'spillRate', label: 'Dökülme hızı', group: 'Sıvı', min: 0.5, max: 8, step: 0.1 },
+  { key: 'flingAccel', label: 'Fırlatma eşiği (m/s²)', group: 'Sıvı', min: 6, max: 50, step: 1 },
+  { key: 'flingRate', label: 'Fırlatma dökülmesi', group: 'Sıvı', min: 0, max: 0.3, step: 0.005 },
   { key: 'swayAccel', label: 'Gövde sallanması', group: 'Sıvı', min: 0, max: 8, step: 0.2 },
   { key: 'suspMult', label: 'Şüphe çarpanı', group: 'Şüphe', min: 0.2, max: 3, step: 0.05 },
   { key: 'suspDecay', label: 'Şüphe azalma (/sn)', group: 'Şüphe', min: 0, max: 4, step: 0.1 },
