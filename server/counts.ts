@@ -19,6 +19,7 @@ import {
   type Quat,
   type V3,
 } from '../shared/math';
+import { headPosOf, mouthPosOf, shoulderOf } from '../shared/body';
 import { propRadius, type PropKind } from '../shared/props';
 import { CF } from '../shared/protocol';
 import type { CountRt, HandRt, PropRt } from './entities';
@@ -31,32 +32,15 @@ export class CountSystem {
   // ------------------------------------------------------------ konumlar
 
   headPos(c: CountRt): V3 {
-    const f = 0.7 * c.bow;
-    return { x: c.x + fwdX(c.yaw) * f, y: COUNT.headY - 0.85 * c.bow, z: c.z + fwdZ(c.yaw) * f };
+    return headPosOf(c.x, c.z, c.yaw, c.bow);
   }
 
   mouthPos(c: CountRt): V3 {
-    const h = this.headPos(c);
-    const yawH = c.yaw + c.headYaw;
-    const cp = Math.cos(c.headPitch);
-    const dx = fwdX(yawH) * cp;
-    const dz = fwdZ(yawH) * cp;
-    const dy = Math.sin(c.headPitch);
-    return {
-      x: h.x + dx * COUNT.mouthForward,
-      y: h.y + dy * COUNT.mouthForward - COUNT.mouthDown,
-      z: h.z + dz * COUNT.mouthForward,
-    };
+    return mouthPosOf(c.x, c.z, c.yaw, c.bow, c.headYaw, c.headPitch);
   }
 
   shoulder(c: CountRt, side: 0 | 1): V3 {
-    const sx = side === 0 ? -COUNT.shoulderX : COUNT.shoulderX;
-    const f = 0.55 * c.bow;
-    return {
-      x: c.x + rightX(c.yaw) * sx + fwdX(c.yaw) * f,
-      y: COUNT.shoulderY - 0.4 * c.bow,
-      z: c.z + rightZ(c.yaw) * sx + fwdZ(c.yaw) * f,
-    };
+    return shoulderOf(c.x, c.z, c.yaw, c.bow, side);
   }
 
   // ------------------------------------------------------------ adım
