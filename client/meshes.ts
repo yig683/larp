@@ -771,6 +771,12 @@ export class CountView {
     this.group.add(this.root);
   }
 
+  /** Birinci şahıs kameradaki gizleme bayraklarını hemen uygular (bir kare gecikme olmasın). */
+  applyFirstPerson(): void {
+    this.headG.visible = !this.hideHead;
+    for (const o of this.bodyParts) o.visible = !this.hideBody;
+  }
+
   /** Yeni sıçrama: palto üzerine leke ekler. */
   addStain(liquid: string, y: number): void {
     this.pendingStains.push({ liquid, y });
@@ -817,8 +823,7 @@ export class CountView {
     const hp = headPosOf(0, 0, 0, s.bow);
     this.headG.position.set(hp.x, hp.y + Math.abs(Math.cos(this.walk)) * 0.03 * sp, hp.z);
     this.headG.rotation.set(s.headPitch, s.headYaw, 0);
-    this.headG.visible = !this.hideHead;
-    for (const o of this.bodyParts) o.visible = !this.hideBody;
+    this.applyFirstPerson();
     // yüz: Şüphe ile kızarır ve terler
     const k = Math.min(1, s.susp / 100);
     this.faceMat.color.setHex(PAL.skin).lerp(new THREE.Color(0xe0553f), Math.max(0, k - 0.3) * 1.2);

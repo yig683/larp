@@ -150,7 +150,7 @@ const TPL: Record<string, Tpl[]> = {
   ],
 };
 
-const PHOTO_KINDS = new Set(['burst', 'spillNpc', 'slap', 'shatter', 'toast', 'caught', 'face', 'rescued', 'restack', 'waltzDone']);
+const PHOTO_KINDS = new Set(['burst', 'spillNpc', 'slap', 'shatter', 'toast', 'caught', 'face', 'bump', 'crash', 'rescued', 'restack', 'waltzDone']);
 
 export function makeGazette(story: StoryEvent[], results: SceneResult[], rng: Rng, issue: number, stackCount: number): Gazette {
   const name = (s: number): string => STACK_NAMES[s] ?? `Yığın ${s + 1}`;

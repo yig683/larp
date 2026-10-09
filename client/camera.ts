@@ -25,6 +25,17 @@ export function updateCamera(c: CamCtx): { view: ViewMode; stack: number } {
   const { world, ents, input, fx, nowMs, t } = c;
   const cam = world.camera;
   cam.rotation.order = 'YXZ';
+  if (S.debugCam) {
+    const d = S.debugCam;
+    cam.position.set(d.x, d.y, d.z);
+    cam.lookAt(d.tx, d.ty, d.tz);
+    if (Math.abs(cam.fov - d.fov) > 0.05) {
+      cam.fov = d.fov;
+      cam.updateProjectionMatrix();
+    }
+    ents.setFirstPerson(null, null);
+    return { view: 'orbit', stack: Math.max(0, S.myStack) };
+  }
   let view: ViewMode = 'orbit';
   let stack = S.myStack >= 0 ? S.myStack : S.spectateStack;
   const inGame = S.phase === 'briefing' || S.phase === 'playing' || S.phase === 'sceneEnd';

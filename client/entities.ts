@@ -162,8 +162,9 @@ export class Entities {
   setFirstPerson(stack: number | null, view: 'head' | 'hands' | null): void {
     for (const [s, v] of this.counts) {
       const own = s === stack;
-      v.hideHead = own && view === 'head';
+      v.hideHead = own && view !== null;
       v.hideBody = own && view !== null;
+      v.applyFirstPerson();
     }
   }
 

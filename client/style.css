@@ -178,12 +178,18 @@ body {
   position: fixed;
   inset: 0;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   background: radial-gradient(ellipse at 50% 40%, rgba(40, 14, 28, 0.55), rgba(8, 3, 8, 0.9));
   backdrop-filter: blur(2px);
   padding: 20px;
   overflow: auto;
+}
+.screen > * {
+  margin: auto; /* içerik ekrandan küçükse ortala, büyükse üstten başlat (kaydırılabilir) */
+}
+.screen.clear > * {
+  margin: 0 auto;
 }
 .screen.clear {
   background: linear-gradient(rgba(8, 3, 8, 0.82), rgba(8, 3, 8, 0.18) 38%, rgba(8, 3, 8, 0.18) 72%, rgba(8, 3, 8, 0.7));

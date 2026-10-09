@@ -289,7 +289,10 @@ function onEvent(e: GameEvent): void {
     case 'susp': {
       if (!isMine(stack)) break;
       const d = Number(e.d);
-      if (Math.abs(d) >= 1) ui.feed(`${d > 0 ? '+' : ''}${Math.round(d)} Şüphe · ${String(e.why)}`, d > 0 ? 'bad' : 'good');
+      const why = String(e.why);
+      if (Math.abs(d) >= 1) ui.feed(`${d > 0 ? '+' : ''}${Math.round(d)} Şüphe · ${why}`, d > 0 ? 'bad' : 'good');
+      if (d >= 5 && /yüzüne/.test(why)) photo('face', 180);
+      else if (d >= 5 && /çarpıştı/.test(why)) photo('bump', 180);
       break;
     }
     case 'splash': {
@@ -316,6 +319,7 @@ function onEvent(e: GameEvent): void {
       fx.crash(Number(e.x), Number(e.y), Number(e.z), broke);
       audio.play('crash', Math.min(1, 0.3 + Number(e.mag) / 8));
       if (broke) photo('shatter');
+      else if (Number(e.mag) > 6) photo('crash');
       break;
     }
     case 'react': {

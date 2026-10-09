@@ -368,6 +368,7 @@ export class CountSystem {
     if (h.faceCd > 0) return;
     const hp = h.body.translation();
     for (const n of this.g.npcs.values()) {
+      if (n.tag === 'partner') continue; // vals eşine dokunmak serbest
       if (dist3(hp, { x: n.x, y: 1.62, z: n.z }) < 0.42) {
         h.faceCd = 2.5;
         if (h.slapT > 0) return; // tokat zaten ayrıca ele alınıyor
@@ -382,6 +383,7 @@ export class CountSystem {
   private detectBumps(c: CountRt): void {
     const sp = Math.hypot(c.vx, c.vz);
     for (const n of this.g.npcs.values()) {
+      if (n.tag === 'partner') continue; // vals eşi: çarpışma cezası yok
       const d = dist2(c.x, c.z, n.x, n.z);
       if (d < COUNT.radius + NPC_DIM.radius + 0.08 && n.bumpCd <= 0) {
         if (sp > 0.5 || c.sway > 0.5) {

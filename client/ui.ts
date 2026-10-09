@@ -300,11 +300,19 @@ export class UI {
   renderNight(g: Gazette): void {
     this.hud.hidden = true;
     this.input.releaseLock();
+    // Önce habere uygun fotoğraf; yoksa gecenin kullanılmamış en yeni fotoğrafı (hiç yoksa boş)
+    const used = new Set<string>();
+    const spare = (): string => {
+      for (const list of Array.from(this.photos.values()).reverse()) for (let i = list.length - 1; i >= 0; i--) if (!used.has(list[i]!)) return list[i]!;
+      return '';
+    };
     const photoFor = (kind?: string): string => {
       if (!kind) return '';
       const list = this.photos.get(kind);
-      if (!list || list.length === 0) return '';
-      return list[list.length - 1]!;
+      const pick = list && list.length > 0 ? list[list.length - 1]! : '';
+      const ph = pick && !used.has(pick) ? pick : spare();
+      if (ph) used.add(ph);
+      return ph;
     };
     const hlPhoto = photoFor(g.headline.photo);
     const stories = g.stories

@@ -52,6 +52,8 @@ export interface ClientState {
   fps: number;
   settings: Settings;
   err: string;
+  /** Yalnızca geliştirme/ekran görüntüsü araçları için: sabit serbest kamera. */
+  debugCam: { x: number; y: number; z: number; tx: number; ty: number; tz: number; fov: number } | null;
 }
 
 function loadSettings(): Settings {
@@ -103,6 +105,7 @@ export const S: ClientState = {
   fps: 60,
   settings: loadSettings(),
   err: '',
+  debugCam: null,
 };
 
 export function esc(s: string): string {
