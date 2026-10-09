@@ -18,7 +18,8 @@
     "shots": "tsx tools/shots.ts",
     "e2e": "tsx tools/e2e.ts",
     "tour": "tsx tools/tour.ts",
-    "overview": "tsx tools/overview.ts"
+    "overview": "tsx tools/overview.ts",
+    "voice": "tsx tools/voice-e2e.ts"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "0.21.0",

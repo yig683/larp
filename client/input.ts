@@ -19,7 +19,7 @@ export type Group = 'legs' | 'head' | 'hands' | 'body';
 export interface InputCallbacks {
   onSay(index: number): void;
   onLockChange(locked: boolean): void;
-  onToggle(what: 'tuning' | 'report' | 'mute' | 'hints' | 'menu'): void;
+  onToggle(what: 'tuning' | 'report' | 'mute' | 'hints' | 'menu' | 'mic'): void;
 }
 
 const HAND_K = 0.0034; // metre / piksel
@@ -129,6 +129,9 @@ export class Input {
 
   private onKey(e: KeyboardEvent, down: boolean): void {
     const k = e.code;
+    // ad kutusuna/ayar alanına yazarken kısayollar çalışmasın
+    const tg = e.target as HTMLElement | null;
+    const typing = !!tg && (tg.tagName === 'INPUT' || tg.tagName === 'TEXTAREA' || tg.tagName === 'SELECT' || tg.isContentEditable);
     if (down && !e.repeat) {
       if (k === 'F8') {
         this.cb.onToggle('tuning');
@@ -140,8 +143,9 @@ export class Input {
         e.preventDefault();
         return;
       }
-      if (k === 'KeyM') this.cb.onToggle('mute');
-      if (k === 'KeyH') this.cb.onToggle('hints');
+      if (!typing && k === 'KeyM') this.cb.onToggle('mute');
+      if (!typing && k === 'KeyV') this.cb.onToggle('mic');
+      if (!typing && k === 'KeyH') this.cb.onToggle('hints');
     }
     if (!this.locked) return;
     if (k === 'Tab') {

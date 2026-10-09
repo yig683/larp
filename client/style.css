@@ -976,3 +976,56 @@ table.sc th {
 #gear:hover {
   opacity: 1;
 }
+
+/* ---------------------------------------------------------------- sesli sohbet */
+.chk {
+  display: block;
+  margin-top: 12px;
+  font-size: 14px;
+  cursor: pointer;
+  opacity: 0.92;
+}
+.chk small {
+  opacity: 0.7;
+}
+.vi {
+  margin-left: 6px;
+  font-size: 13px;
+  opacity: 0.75;
+}
+.vi.on {
+  opacity: 1;
+  animation: vpulse 0.5s infinite alternate;
+}
+@keyframes vpulse {
+  from {
+    filter: drop-shadow(0 0 0 rgba(120, 255, 160, 0));
+  }
+  to {
+    filter: drop-shadow(0 0 5px rgba(120, 255, 160, 0.95));
+  }
+}
+.vbox {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px dashed rgba(214, 169, 58, 0.35);
+}
+.vbox h3 {
+  margin: 0 0 6px;
+}
+#voicebar {
+  position: absolute;
+  left: 50%;
+  bottom: 44px;
+  transform: translateX(-50%);
+  font-size: 13px;
+  padding: 3px 12px;
+  border-radius: 12px;
+  background: rgba(10, 4, 10, 0.62);
+  border: 1px solid rgba(214, 169, 58, 0.3);
+  white-space: nowrap;
+}
+#voicebar.speaking {
+  border-color: rgba(120, 255, 160, 0.9);
+  box-shadow: 0 0 10px rgba(120, 255, 160, 0.5);
+}

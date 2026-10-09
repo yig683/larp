@@ -32,7 +32,7 @@ async function mkPage(ctx: BrowserContext, url: string, name: string, errs: stri
   });
   page.on('pageerror', (e) => errs.push(`[${name}] pageerror: ${e.message}`));
   await page.addInitScript((n) => {
-    localStorage.setItem('tk.settings', JSON.stringify({ name: n, sid: 'sid-' + n, quality: 'mid', tts: false, volume: 0.1, hints: true, sens: 1, toggleGrip: false }));
+    localStorage.setItem('tk.settings', JSON.stringify({ name: n, sid: 'sid-' + n, quality: 'mid', tts: false, volume: 0.1, hints: true, sens: 1, toggleGrip: false, voice: false }));
   }, name);
   await page.goto(url);
   return page;

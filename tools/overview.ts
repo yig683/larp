@@ -24,7 +24,7 @@ page.on('console', (m) => {
   if (m.type() === 'error' || m.type() === 'warning') errs.push(`${m.type()}: ${m.text()}`);
 });
 page.on('pageerror', (e) => errs.push(`pageerror: ${e.message}`));
-await page.addInitScript(() => localStorage.setItem('tk.settings', JSON.stringify({ name: 'Ev', sid: 'sid-ev', quality: 'mid', tts: false, volume: 0.05, hints: false, sens: 1, toggleGrip: false })));
+await page.addInitScript(() => localStorage.setItem('tk.settings', JSON.stringify({ name: 'Ev', sid: 'sid-ev', quality: 'mid', tts: false, volume: 0.05, hints: false, sens: 1, toggleGrip: false, voice: false })));
 const run = (body: string): Promise<void> => page.evaluate(`(() => { const T = window.__tk; ${body} })()`) as Promise<void>;
 const shot = async (name: string): Promise<void> => {
   await page.screenshot({ path: path.join(outDir, name) });

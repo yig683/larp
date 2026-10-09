@@ -42,7 +42,7 @@ async function mkPage(browser: Browser, url: string, name: string): Promise<Pg> 
   });
   page.on('pageerror', (e) => errs.push(`[${name}] pageerror: ${e.message}`));
   await page.addInitScript((n) => {
-    localStorage.setItem('tk.settings', JSON.stringify({ name: n, sid: 'sid-' + n, quality: 'low', tts: false, volume: 0.05, hints: true, sens: 1, toggleGrip: false }));
+    localStorage.setItem('tk.settings', JSON.stringify({ name: n, sid: 'sid-' + n, quality: 'low', tts: false, volume: 0.05, hints: true, sens: 1, toggleGrip: false, voice: false }));
   }, name);
   await page.goto(url);
   await page.waitForSelector('#nameinp', { timeout: 20000 });

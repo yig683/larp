@@ -29,7 +29,7 @@ page.on('console', (m) => {
 });
 page.on('pageerror', (e) => errs.push(`pageerror: ${e.message}`));
 await page.addInitScript(
-  (q) => localStorage.setItem('tk.settings', JSON.stringify({ name: 'Tur', sid: 'sid-tur', quality: q, tts: false, volume: 0.05, hints: true, sens: 1, toggleGrip: false })),
+  (q) => localStorage.setItem('tk.settings', JSON.stringify({ name: 'Tur', sid: 'sid-tur', quality: q, tts: false, volume: 0.05, hints: true, sens: 1, toggleGrip: false, voice: false })),
   quality,
 );
 

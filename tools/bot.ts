@@ -38,6 +38,9 @@ export class Bot {
   snapTimes: number[] = [];
   /** Sunucudan gelen toplam bayt (bant genişliği ölçümü için). */
   bytesIn = 0;
+  /** Gelen WebRTC sinyalleri ve ICE ayarı (ses sohbeti testleri için). */
+  rtcIn: Array<Extract<S2C, { t: 'rtc' }>> = [];
+  ice: unknown[] = [];
   /** Çaylak yapay zekâsı durumu: kendi çaylağım ve paltoların yığılma noktaları. */
   kidId = 0;
   kidStack = -1;
@@ -109,6 +112,10 @@ export class Bot {
         this.players = m.players;
         this.phase = m.phase;
         this.tuning = m.tuning;
+        this.ice = m.ice ?? [];
+        break;
+      case 'rtc':
+        this.rtcIn.push(m);
         break;
       case 'players':
         this.players = m.players;

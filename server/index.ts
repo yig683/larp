@@ -10,7 +10,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import zlib from 'node:zlib';
 import { WebSocketServer } from 'ws';
 import { DT } from '../shared/constants';
-import type { C2S } from '../shared/protocol';
+import type { C2S, IceServerCfg } from '../shared/protocol';
 import { Rng } from '../shared/rng';
 import { assignStacks } from '../shared/roles';
 import { TUNING_DEFAULTS, type Tuning } from '../shared/tuning';
@@ -19,6 +19,8 @@ import { initRapier } from './rapier';
 import { Room, type Conn } from './room';
 
 export interface ServerOpts {
+  /** WebRTC ICE sunucuları (varsayılan: herkese açık STUN; TURN için TK_ICE veya TURN_URL/TURN_USER/TURN_PASS). */
+  ice?: IceServerCfg[];
   port?: number;
   host?: string;
   distDir?: string;
@@ -72,6 +74,21 @@ function buildId(): string {
   }
 }
 
+/** Ses sohbeti için ICE sunucuları: ortam değişkenlerinden okunur. */
+export function iceFromEnv(env: NodeJS.ProcessEnv = process.env): IceServerCfg[] {
+  if (env.TK_ICE) {
+    try {
+      const v = JSON.parse(env.TK_ICE) as IceServerCfg[];
+      if (Array.isArray(v)) return v;
+    } catch {
+      /* geçersiz JSON: varsayılana düş */
+    }
+  }
+  const list: IceServerCfg[] = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302', 'stun:stun.cloudflare.com:3478'] }];
+  if (env.TURN_URL) list.push({ urls: env.TURN_URL.split(',').map((x) => x.trim()), username: env.TURN_USER, credential: env.TURN_PASS });
+  return list;
+}
+
 export function lanUrls(port: number): string[] {
   const out: string[] = [];
   for (const list of Object.values(os.networkInterfaces())) {
@@ -122,6 +139,8 @@ export async function startServer(opts: ServerOpts = {}): Promise<RunningServer>
       }
     }, 500);
   });
+
+  room.ice = opts.ice ?? iceFromEnv();
 
   await warmup(room.tuning);
 

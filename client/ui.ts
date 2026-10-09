@@ -6,6 +6,7 @@ import { TUNE_DEFS, TUNING_DEFAULTS, type Tuning } from '../shared/tuning';
 import type { Input } from './input';
 import { S, esc, saveSettings } from './state';
 import { PAL } from './textures';
+import type { Voice } from './voice';
 
 export interface UIActions {
   join(name: string): void;
@@ -15,6 +16,9 @@ export interface UIActions {
   tuneReset(): void;
   volume(v: number): void;
   quality(q: 'low' | 'mid' | 'high'): void;
+  voiceToggle(): void;
+  voiceMute(): void;
+  voiceVolume(v: number): void;
 }
 
 const ROLE_TITLE: Record<string, string> = { legs: 'Bacaklar', head: 'Kafa', handL: 'Sol El', handR: 'Sağ El', body: 'Beden (bacak + kafa)', hands: 'Eller' };
@@ -61,6 +65,9 @@ export class UI {
   private lastObj = '';
   private bannerT = 0;
   private hudAt = 0;
+  private voiceAt = 0;
+  private lastBr = '';
+  private lastHint = '';
   tuningOpen = false;
   settingsOpen = false;
   photos = new Map<string, string[]>();
@@ -69,6 +76,7 @@ export class UI {
     private root: HTMLElement,
     private act: UIActions,
     private input: Input,
+    private voice: Voice,
   ) {
     this.screen = document.createElement('div');
     this.hud = document.createElement('div');
@@ -113,6 +121,12 @@ export class UI {
         break;
       case 'lock':
         this.act.lock();
+        break;
+      case 'voice':
+        this.act.voiceToggle();
+        break;
+      case 'mic':
+        this.act.voiceMute();
         break;
       case 'invite':
         copyText(el.dataset.text ?? '');
@@ -159,6 +173,14 @@ export class UI {
         case 'hints':
           S.settings.hints = el.checked;
           break;
+        case 'voice':
+          S.settings.voice = el.checked;
+          if (S.phase !== 'menu' && (this.voice.status === 'off') === el.checked) this.act.voiceToggle();
+          break;
+        case 'voiceVol':
+          S.settings.voiceVol = Number(el.value);
+          this.act.voiceVolume(S.settings.voiceVol);
+          break;
         case 'quality':
           S.settings.quality = el.value as 'low' | 'mid' | 'high';
           this.act.quality(S.settings.quality);
@@ -184,6 +206,7 @@ export class UI {
         <h1 class="title">Trençkot Kontu</h1>
         <p class="sub">Üç-dört kafadar, tek bir soylu.<br/>Sekiz kişi, iki Kont, sıfır utanç.</p>
         <input id="nameinp" type="text" maxlength="16" placeholder="Adın ne, misafir?" value="${esc(S.settings.name)}" autocomplete="off" />
+        <label class="chk"><input type="checkbox" data-set="voice" ${S.settings.voice ? 'checked' : ''}/> 🎤 Oyun içi sesli sohbet <small>(deneysel · mikrofon izni ister; kulaklık önerilir)</small></label>
         <div class="row center" style="margin-top:16px"><button class="btn big" data-act="join">Galaya Gir</button></div>
         ${hostBadge}
         <div class="err" id="menuerr">${esc(S.err)}</div>
@@ -203,7 +226,7 @@ export class UI {
     const list = connected
       .map(
         (p) =>
-          `<li><span class="dot" style="background:#${PAL.player[p.color % 8]!.toString(16).padStart(6, '0')}"></span>${esc(p.name)}${p.id === S.me.id ? ' <span class="tag">sen</span>' : ''}${p.host ? ' <span class="tag host">ev sahibi</span>' : ''}<span class="muted" style="margin-left:auto">${p.ping ? p.ping + ' ms' : ''}</span></li>`,
+          `<li><span class="dot" style="background:#${PAL.player[p.color % 8]!.toString(16).padStart(6, '0')}"></span>${esc(p.name)}${p.id === S.me.id ? ' <span class="tag">sen</span>' : ''}${p.host ? ' <span class="tag host">ev sahibi</span>' : ''}<span class="vi" data-vp="${p.id}"></span><span class="muted" style="margin-left:auto">${p.ping ? p.ping + ' ms' : ''}</span></li>`,
       )
       .join('');
     const sizes = n <= 4 ? [n] : [Math.ceil(Math.min(n, 8) / 2), Math.floor(Math.min(n, 8) / 2)];
@@ -224,9 +247,10 @@ export class UI {
                 ? `<h3>Arkadaşlarını çağır</h3>
                    <div class="invite">${esc(invite)}</div>
                    <div class="row" style="margin-top:8px"><button class="btn small" data-act="invite" data-text="${esc(invite)}">Bağlantıyı kopyala</button></div>
-                   <p class="muted">Arkadaşların sadece bu bağlantıyı açar; kurulum yok. Sesli konuşmak için Discord'da her Kont'a ayrı kanal açın.</p>`
+                   <p class="muted">Arkadaşların sadece bu bağlantıyı açar; kurulum yok.</p>`
                 : `<h3>Hazır mısın?</h3><p class="muted">Ev sahibi geceyi başlatınca roller rastgele dağıtılır. Her sahnede roller kayar: herkes her uzvu yönetir.</p>`
             }
+            <div id="vbox" class="vbox">${this.voiceBoxHtml()}</div>
             <p class="muted" style="margin-top:12px">Fare ve klavye gerekli. İlk tıkta fare kilitlenir (Esc ile çıkarsın).</p>
           </div>
         </div>
@@ -350,6 +374,80 @@ export class UI {
     );
   }
 
+  // ------------------------------------------------------------ ses
+
+  private voiceBoxHtml(): string {
+    const v = this.voice;
+    const st = v.status;
+    let line: string;
+    if (st === 'off') line = S.settings.voice ? 'Başlatılıyor…' : 'Kapalı. Başka bir uygulamayla (Discord) konuşuyorsan böyle kalsın.';
+    else if (st === 'starting') line = 'Mikrofon izni bekleniyor…';
+    else if (st === 'unsupported') line = v.note;
+    else {
+      line = st === 'on' ? (v.muted ? '🔇 Mikrofonun susturuldu (V)' : '🎤 Mikrofonun açık (V: sustur)') : `🎧 ${esc(v.note || 'Yalnızca dinliyorsun.')}`;
+      line += ` · ${v.connectedCount()} kişiyle bağlı`;
+      if (v.failedCount() > 0) line += ` · ⚠ ${v.failedCount()} bağlantı kurulamadı (onlarla Discord kullan)`;
+    }
+    const muteBtn = st === 'on' ? `<button class="btn small ghost" data-act="mic">${v.muted ? 'Sesi aç (V)' : 'Sustur (V)'}</button>` : '';
+    return `<h3>Sesli sohbet</h3>
+      <p class="muted" style="margin:0 0 6px">${line}</p>
+      <div class="row"><button class="btn small" data-act="voice">${st === 'off' ? 'Sesli sohbeti aç' : 'Kapat'}</button>${muteBtn}</div>
+      <p class="muted" style="margin-top:6px;font-size:12px">Aynı Kont'taki arkadaşların her zaman duyulur; rakip Kont yalnızca yakınındayken. Kulaklık önerilir.</p>`;
+  }
+
+  private voiceBarHtml(): string {
+    const v = this.voice;
+    if (v.status === 'on') return v.muted ? '🔇 susturuldun · <b>V</b>' : '🎤 mikrofon açık · <b>V</b>: sustur';
+    if (v.status === 'listen') return '🎧 yalnızca dinleme';
+    return '';
+  }
+
+  private lastVoiceBar = '';
+  private lastVoiceBox = '';
+
+  /** Ses durumu değişti (başlıyor, eş bağlandı, susturuldu…). */
+  onVoiceChange(): void {
+    const box = this.root.querySelector<HTMLElement>('#vbox');
+    if (box) {
+      const h = this.voiceBoxHtml();
+      if (h !== this.lastVoiceBox) {
+        this.lastVoiceBox = h;
+        box.innerHTML = h;
+      }
+    }
+    this.updateVoiceBar();
+  }
+
+  private updateVoiceBar(): void {
+    const el = this.hud.querySelector<HTMLElement>('#voicebar');
+    if (!el) return;
+    const h = this.voiceBarHtml();
+    if (h !== this.lastVoiceBar) {
+      this.lastVoiceBar = h;
+      el.innerHTML = h;
+      el.hidden = h === '';
+    }
+    el.classList.toggle('speaking', this.voice.isSpeaking(S.me.id));
+  }
+
+  /** Oyuncu adlarının yanındaki konuşuyor/mikrofon simgeleri. */
+  voiceIcon(pid: number): string {
+    const p = S.players.find((x) => x.id === pid);
+    if (!p || p.voice === 0) return '';
+    if (pid === S.me.id) return this.voice.muted ? '🔇' : this.voice.isSpeaking(pid) ? '🔊' : p.voice === 2 ? '🎤' : '🎧';
+    if (this.voice.peerState(pid) === 'failed') return '⚠';
+    if (p.voice === 1) return '🎧';
+    return this.voice.isSpeaking(pid) ? '🔊' : '🎤';
+  }
+
+  private updateVoiceIcons(): void {
+    for (const el of Array.from(this.root.querySelectorAll<HTMLElement>('[data-vp]'))) {
+      const ic = this.voiceIcon(Number(el.dataset.vp));
+      if (el.textContent !== ic) el.textContent = ic;
+      el.classList.toggle('on', ic === '🔊');
+    }
+  }
+
   // ------------------------------------------------------------ HUD
 
   private buildHud(): void {
@@ -364,6 +462,7 @@ export class UI {
       <div id="restack" class="panel" hidden></div>
       <div id="wheel" hidden><div class="core" id="w-core"></div><div id="wheelptr"></div></div>
       <div id="netwarn" hidden>Bağlantı koptu, yeniden deneniyor…</div>
+      <div id="voicebar" hidden></div>
       <div id="perf"></div>
       <div id="lockhint" hidden data-act="lock">Oynamak için tıkla<small>Fare kilitlenir · Esc ile çıkarsın</small></div>`;
   }
@@ -457,6 +556,11 @@ export class UI {
     if (cd) cd.textContent = String(Math.max(0, Math.ceil((S.briefingUntil - nowMs) / 1000)));
     // rol kartı
     this.updateRole();
+    if (nowMs - this.voiceAt > 120) {
+      this.voiceAt = nowMs;
+      this.updateVoiceIcons();
+      this.updateVoiceBar();
+    }
     // Şüphe vinyeti
     const mine = h?.stacks[S.myStack >= 0 ? S.myStack : S.spectateStack];
     const vg = document.getElementById('vignette')!;
@@ -476,14 +580,20 @@ export class UI {
     const hint = this.hud.querySelector<HTMLElement>('#h-hint')!;
     const panel = this.hud.querySelector<HTMLElement>('#hud-bl')!;
     panel.hidden = !S.settings.hints;
+    const setHint = (html: string): void => {
+      if (html !== this.lastHint) {
+        this.lastHint = html;
+        hint.innerHTML = html;
+      }
+    };
     if (S.inKidMode) {
       role.textContent = 'Çaylak';
-      hint.innerHTML = ROLE_HINT.kid!;
+      setHint(ROLE_HINT.kid!);
       return;
     }
     if (S.myStack < 0) {
       role.textContent = 'Seyirci';
-      hint.innerHTML = ROLE_HINT.spec!;
+      setHint(ROLE_HINT.spec!);
       return;
     }
     const g = this.input.group;
@@ -497,20 +607,31 @@ export class UI {
     } else text = ROLE_HINT[g] ?? '';
     const multi = this.input.groups().length > 1;
     role.textContent = name;
-    hint.innerHTML = text + (multi ? `<br/>${kb('Tab')} rol değiştir (${this.input.groups().map((x) => ROLE_TITLE[x]).join(' / ')})` : '') + `<br/><span class="muted">${kb('H')} ipuçlarını gizle · ${kb('M')} sesi kapat</span>`;
-    // kimin kimi yönettiği
+    setHint(
+      text +
+        (multi ? `<br/>${kb('Tab')} rol değiştir (${this.input.groups().map((x) => ROLE_TITLE[x]).join(' / ')})` : '') +
+        `<br/><span class="muted">${kb('H')} ipuçlarını gizle · ${kb('M')} sesi kapat · ${kb('V')} mikrofonu sustur</span>`,
+    );
+    // kimin kimi yönettiği (konuşan oyuncunun yanında 🔊)
     const br = this.hud.querySelector<HTMLElement>('#hud-br')!;
     const a = S.assign.find((x) => x.stack === S.myStack);
+    let html = '';
     if (a) {
-      br.innerHTML =
+      html =
         `<h3 style="margin:0 0 4px">Yığınım</h3>` +
         (['legs', 'handL', 'handR', 'head'] as SlotId[])
           .map((s) => {
-            const p = S.players.find((x) => x.id === a.slots[s]);
-            return `<div class="who"><span>${SLOT_LABEL[s]}</span><b>${esc(p?.name ?? '-')}</b></div>`;
+            const id = a.slots[s];
+            const p = S.players.find((x) => x.id === id);
+            const ic = id ? this.voiceIcon(id) : '';
+            return `<div class="who"><span>${SLOT_LABEL[s]}</span><b>${esc(p?.name ?? '-')}${ic ? ` <span class="vi${ic === '🔊' ? ' on' : ''}">${ic}</span>` : ''}</b></div>`;
           })
           .join('');
-    } else br.innerHTML = '';
+    }
+    if (html !== this.lastBr) {
+      this.lastBr = html;
+      br.innerHTML = html;
+    }
   }
 
   // ------------------------------------------------------------ çark
@@ -589,6 +710,8 @@ export class UI {
       <label><span><input type="checkbox" data-set="tts" ${s.tts ? 'checked' : ''}/> Konuşan NPC sesleri (tarayıcı TTS)</span></label>
       <label><span><input type="checkbox" data-set="toggleGrip" ${s.toggleGrip ? 'checked' : ''}/> Tutma: bas-bırak yerine aç/kapa</span></label>
       <label><span><input type="checkbox" data-set="hints" ${s.hints ? 'checked' : ''}/> Kontrol ipuçlarını göster</span></label>
+      <label><span><input type="checkbox" data-set="voice" ${s.voice ? 'checked' : ''}/> Oyun içi sesli sohbet (deneysel, mikrofon)</span></label>
+      <label>Arkadaşların ses seviyesi<input type="range" data-set="voiceVol" min="0" max="1.5" step="0.05" value="${s.voiceVol}"/></label>
       <label>Grafik kalitesi<select data-set="quality"><option value="low">Düşük</option><option value="mid">Orta</option><option value="high">Yüksek</option></select></label>`;
     const sel = this.settingsEl.querySelector<HTMLSelectElement>('select')!;
     sel.value = s.quality;

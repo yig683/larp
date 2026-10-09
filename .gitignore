@@ -6,4 +6,4 @@ tuning.local.json
 .DS_Store
 .vite/
 coverage/
-shots/
+shots*/

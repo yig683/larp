@@ -1,6 +1,6 @@
 // Oyun sabitleri. Ölçüler metre cinsindendir.
 
-export const PROTOCOL_VERSION = 1;
+export const PROTOCOL_VERSION = 2;
 
 export const TICK_RATE = 60;
 export const DT = 1 / TICK_RATE;

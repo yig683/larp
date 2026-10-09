@@ -13,6 +13,7 @@ import { Labels } from './labels';
 import { Interp, Net } from './net';
 import { S, saveSettings, esc } from './state';
 import { UI } from './ui';
+import { Voice } from './voice';
 import { QUALITY, World } from './world';
 
 const canvas = document.getElementById('c') as HTMLCanvasElement;
@@ -29,12 +30,42 @@ let needYawInit = false;
 let wantPhoto: string | null = null;
 let t = 0;
 
+/** Oyuncunun yığını (-1: seyirci/bilinmiyor). */
+function stackOfPlayer(pid: number): number {
+  for (const a of S.assign) for (const s of SLOT_IDS) if (a.slots[s] === pid) return a.stack;
+  return -1;
+}
+/** Oyuncunun dünya konumu: çaylaksa kendi konumu, değilse Kont'unun konumu. */
+function posOfPlayer(pid: number): { x: number; z: number } | null {
+  const kid = ents.kidOf(pid);
+  if (kid) return { x: kid.x, z: kid.z };
+  const st = stackOfPlayer(pid);
+  if (st < 0) return null;
+  const cs = ents.countState(st, performance.now(), st === S.myStack);
+  return cs ? { x: cs.x, z: cs.z } : null;
+}
+
+const voice: Voice = new Voice({
+  send: (m) => net.send(m),
+  me: () => S.me.id,
+  players: () => S.players,
+  playing: () => S.phase === 'playing',
+  stackOf: stackOfPlayer,
+  posOf: posOfPlayer,
+  onChange: () => ui.onVoiceChange(),
+});
+let iceCfg: import('../shared/protocol').IceServerCfg[] | undefined;
+voice.setVolume(S.settings.voiceVol);
+
 const input = new Input(canvas, {
   onSay: (i) => net.send({ t: 'say', i }),
   onLockChange: (locked) => ui.setLocked(locked),
   onToggle: (what) => {
     if (what === 'tuning') ui.toggleTuning();
     else if (what === 'mute') audio.setMuted(!audio.muted);
+    else if (what === 'mic') {
+      if (voice.status === 'on') voice.toggleMute();
+    }
     else if (what === 'hints') {
       S.settings.hints = !S.settings.hints;
       saveSettings();
@@ -57,6 +88,7 @@ const ui: UI = new UI(
       saveSettings();
       S.err = '';
       audio.init();
+      if (S.settings.voice) voice.prepare();
       net.connect();
     },
     host: (a) => {
@@ -71,8 +103,26 @@ const ui: UI = new UI(
     tuneReset: () => net.send({ t: 'tuneReset' }),
     volume: (v) => audio.setVolume(v),
     quality: (q) => world.setQuality(QUALITY[q]),
+    voiceToggle: () => {
+      if (voice.status === 'off' || voice.status === 'unsupported') {
+        S.settings.voice = true;
+        saveSettings();
+        voice.prepare();
+        void voice.start(iceCfg);
+      } else {
+        S.settings.voice = false;
+        saveSettings();
+        voice.stop();
+      }
+      ui.onVoiceChange();
+    },
+    voiceMute: () => {
+      if (voice.status === 'on') voice.toggleMute();
+    },
+    voiceVolume: (v) => voice.setVolume(v),
   },
   input,
+  voice,
 );
 
 const net: Net = new Net(
@@ -127,11 +177,17 @@ function onMsg(m: S2C): void {
       if (m.phase === 'lobby') enterLobby();
       else S.phase = m.phase;
       if (m.host) void refreshInvite();
+      iceCfg = m.ice;
+      if (S.settings.voice) void voice.start(iceCfg);
       break;
     case 'players':
       S.players = m.players;
       if (S.phase === 'lobby' && m.phase === 'lobby') ui.renderLobby();
       myAssignUpdate();
+      voice.sync();
+      break;
+    case 'rtc':
+      voice.onSignal(m.from, m.d);
       break;
     case 'tuning':
       S.tuning = m.tuning;
@@ -533,7 +589,7 @@ function capturePhoto(kind: string): void {
 
 ui.showMenu();
 if (new URLSearchParams(location.search).has('debug')) {
-  (window as unknown as { __tk: unknown }).__tk = { S, ents, input, world, interp, net, fx, ui, audio, labels };
+  (window as unknown as { __tk: unknown }).__tk = { S, ents, input, world, interp, net, fx, ui, audio, labels, voice };
 }
 // Kayıtlı adı olan ev sahibi için kolaylık: ?autojoin=1
 if (new URLSearchParams(location.search).get('autojoin') && S.settings.name) {

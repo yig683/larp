@@ -36,7 +36,7 @@ Güncelleme: `guncelle.bat` / `./guncelle.sh` (ya da elle `git pull`). Oyun iste
 Bağlantıya tıkla → adını yaz → **Salona gir**. Chrome/Edge/Firefox yeterli. Kurulum yok. Fare + klavye gerekir (telefon desteklenmez).
 
 ### Sesli konuşma
-Oyunun içinde ses yok (henüz). Discord/benzeri kullanın: **her Kont için ayrı sesli kanal açın** (ör. "Gustavo" ve "Paloma"). Kendi Kont'unuzun içindekilerle konuşmak oyunun kalbi; rakip Kont sizi duymayınca "palto içi" gizliliği doğar. Karşı kanala bilerek kulak misafiri olmak serbest ve eğlencelidir.
+Önerilen yol: Discord/benzeri kullanın (oyun içi ses henüz **deneysel**, giriş ekranındaki "🎤 Oyun içi sesli sohbet" kutusuyla açılır; mikrofon için `https` tünel adresi gerekir): **her Kont için ayrı sesli kanal açın** (ör. "Gustavo" ve "Paloma"). Kendi Kont'unuzun içindekilerle konuşmak oyunun kalbi; rakip Kont sizi duymayınca "palto içi" gizliliği doğar. Karşı kanala bilerek kulak misafiri olmak serbest ve eğlencelidir.
 
 ---
 

@@ -18,6 +18,25 @@ export interface PlayerInfo {
   connected: boolean;
   host: boolean;
   ping: number;
+  /** Sesli sohbet: 0 kapalı, 1 yalnızca dinliyor, 2 mikrofon var. */
+  voice: 0 | 1 | 2;
+  /** Sesli sohbet oturum numarası (yeniden açılınca değişir; eski bağlantılar atılır). */
+  vs: number;
+}
+
+/** WebRTC sinyalleşme zarfı: sunucu yalnızca hedefe iletir. */
+export interface RtcSignal {
+  /** Gönderenin ses oturumu. */
+  vs: number;
+  desc?: { type: 'offer' | 'answer' | 'rollback'; sdp?: string };
+  /** null = aday toplama bitti. */
+  cand?: { candidate: string; sdpMid?: string | null; sdpMLineIndex?: number | null; usernameFragment?: string | null } | null;
+}
+
+export interface IceServerCfg {
+  urls: string | string[];
+  username?: string;
+  credential?: string;
 }
 
 // ---------------------------------------------------------------- istemci -> sunucu
@@ -60,7 +79,9 @@ export type C2S =
   | { t: 'say'; i: number }
   | { t: 'lobby'; a: LobbyAction }
   | { t: 'tune'; key: string; value: number }
-  | { t: 'tuneReset' };
+  | { t: 'tuneReset' }
+  | { t: 'voice'; mode: 0 | 1 | 2; vs: number }
+  | { t: 'rtc'; to: number; d: RtcSignal };
 
 // ---------------------------------------------------------------- sunucu -> istemci
 
@@ -147,8 +168,10 @@ export type S2C =
       phase: Phase;
       tuning: Tuning;
       publicUrl?: string;
+      ice?: IceServerCfg[];
     }
   | { t: 'players'; players: PlayerInfo[]; phase: Phase }
+  | { t: 'rtc'; from: number; d: RtcSignal }
   | { t: 'pong'; c: number }
   | { t: 'scene'; info: SceneInfo; entities: EntityDef[]; assign: Array<{ stack: number; slots: Record<SlotId, number> }> }
   | { t: 'phase'; phase: Phase; countdown?: number }

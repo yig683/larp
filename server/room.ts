@@ -3,7 +3,7 @@
 import { DT, MAX_PLAYERS, PROTOCOL_VERSION, SLOT_IDS, SNAP_EVERY, STACK_NAMES, type SlotId } from '../shared/constants';
 import { Rng } from '../shared/rng';
 import { assignStacks, rotateAssign, slotMap, slotsOf, type StackAssign } from '../shared/roles';
-import { encodeSnapshot, type C2S, type Gazette, type GameEvent, type Phase, type PlayerInfo, type S2C, type SceneId, type SceneResult } from '../shared/protocol';
+import { encodeSnapshot, type C2S, type Gazette, type GameEvent, type IceServerCfg, type Phase, type PlayerInfo, type RtcSignal, type S2C, type SceneId, type SceneResult } from '../shared/protocol';
 import { TUNE_DEFS, TUNING_DEFAULTS, sanitizeTuning, type Tuning } from '../shared/tuning';
 import { makeGazette } from './gazette';
 import { Game, type StoryEvent } from './game';
@@ -30,6 +30,10 @@ class PlayerRt {
   pings: number[] = [];
   fpsS: number[] = [];
   disconnects = 0;
+  voice: 0 | 1 | 2 = 0;
+  vs = 0;
+  rtcTokens = 600;
+  rtcLast = Date.now();
   constructor(
     readonly id: number,
     readonly sid: string,
@@ -66,6 +70,8 @@ export class Room {
   night: Night | null = null;
   tuning: Tuning;
   publicUrl: string | undefined;
+  /** İstemcilere gönderilen WebRTC ICE sunucuları (STUN/TURN). */
+  ice: IceServerCfg[] = [];
   nightCount = 0;
   lastGazette: Gazette | null = null;
   lastReport = '';
@@ -113,6 +119,8 @@ export class Room {
         connected: !!p.conn,
         host: p.host,
         ping: Math.round(p.ping),
+        voice: p.voice,
+        vs: p.vs,
       };
     });
   }
@@ -160,6 +168,7 @@ export class Room {
       phase: this.phase,
       tuning: this.tuning,
       publicUrl: p.host ? this.publicUrl : undefined,
+      ice: this.ice,
     });
     this.pushPlayers();
     if (this.game) this.syncJoiner(p);
@@ -184,6 +193,7 @@ export class Room {
     const p = Array.from(this.players.values()).find((x) => x.conn === conn);
     if (!p) return;
     p.conn = null;
+    p.voice = 0;
     p.disconnects++;
     this.game?.dropPlayer(p.id);
     if (this.phase === 'lobby') this.players.delete(p.id);
@@ -201,6 +211,19 @@ export class Room {
     switch (msg.t) {
       case 'ping':
         this.send(p, { t: 'pong', c: msg.c });
+        break;
+      case 'voice': {
+        const mode = msg.mode === 2 ? 2 : msg.mode === 1 ? 1 : 0;
+        const vs = Number.isFinite(msg.vs) ? Math.trunc(msg.vs) % 2_000_000_000 : 0;
+        if (mode !== p.voice || vs !== p.vs) {
+          p.voice = mode;
+          p.vs = vs;
+          this.pushPlayers();
+        }
+        break;
+      }
+      case 'rtc':
+        this.relayRtc(p, msg);
         break;
       case 'stats':
         if (Number.isFinite(msg.rtt)) {
@@ -245,6 +268,33 @@ export class Room {
       default:
         break;
     }
+  }
+
+  /** WebRTC sinyalleşmesi: yalnızca hedef oyuncuya, temizlenmiş zarfla iletilir. */
+  private relayRtc(p: PlayerRt, msg: Extract<C2S, { t: 'rtc' }>): void {
+    const now = Date.now();
+    p.rtcTokens = Math.min(600, p.rtcTokens + ((now - p.rtcLast) / 1000) * 200);
+    p.rtcLast = now;
+    if (p.rtcTokens < 1) return;
+    p.rtcTokens -= 1;
+    const to = this.players.get(Number(msg.to));
+    const d = msg.d as RtcSignal | undefined;
+    if (!to || !to.conn || to === p || !d || typeof d !== 'object') return;
+    const out: RtcSignal = { vs: Number.isFinite(d.vs) ? Math.trunc(d.vs) % 2_000_000_000 : 0 };
+    if (d.desc && (d.desc.type === 'offer' || d.desc.type === 'answer' || d.desc.type === 'rollback')) {
+      out.desc = { type: d.desc.type, sdp: typeof d.desc.sdp === 'string' ? d.desc.sdp.slice(0, 24000) : undefined };
+    }
+    if (d.cand === null) out.cand = null;
+    else if (d.cand && typeof d.cand.candidate === 'string') {
+      out.cand = {
+        candidate: d.cand.candidate.slice(0, 1000),
+        sdpMid: typeof d.cand.sdpMid === 'string' ? d.cand.sdpMid.slice(0, 40) : null,
+        sdpMLineIndex: Number.isFinite(d.cand.sdpMLineIndex) ? Number(d.cand.sdpMLineIndex) : null,
+        usernameFragment: typeof d.cand.usernameFragment === 'string' ? d.cand.usernameFragment.slice(0, 80) : null,
+      };
+    }
+    if (!out.desc && out.cand === undefined) return;
+    this.send(to, { t: 'rtc', from: p.id, d: out });
   }
 
   private hostAction(a: string): void {

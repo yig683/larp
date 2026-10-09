@@ -16,6 +16,10 @@ export interface Settings {
   quality: 'low' | 'mid' | 'high';
   hints: boolean;
   toggleGrip: boolean;
+  /** Oyun içi sesli sohbet (mikrofon izni istenir). */
+  voice: boolean;
+  /** Başkalarını duyma seviyesi 0..1.5 */
+  voiceVol: number;
 }
 
 export interface SceneAssign {
@@ -57,7 +61,7 @@ export interface ClientState {
 }
 
 function loadSettings(): Settings {
-  const d: Settings = { name: '', sid: '', sens: 1, volume: 0.7, tts: true, quality: 'mid', hints: true, toggleGrip: false };
+  const d: Settings = { name: '', sid: '', sens: 1, volume: 0.7, tts: true, quality: 'mid', hints: true, toggleGrip: false, voice: false, voiceVol: 1 };
   try {
     const raw = localStorage.getItem('tk.settings');
     if (raw) Object.assign(d, JSON.parse(raw) as Partial<Settings>);
