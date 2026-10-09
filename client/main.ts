@@ -475,7 +475,10 @@ function frame(now: number): void {
     sendAcc += dt;
     if (msg && sendAcc >= 1 / 30) {
       sendAcc = 0;
-      if (S.phase === 'playing') net.send({ t: 'inp', seq: input.nextSeq(), ...msg });
+      if (S.phase === 'playing') {
+        net.send({ t: 'inp', seq: input.nextSeq(), ...msg });
+        input.sent();
+      }
     }
   } else if (S.phase === 'sceneEnd' && input.locked) input.releaseLock();
 

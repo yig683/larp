@@ -2,6 +2,7 @@
 
 import WebSocket from 'ws';
 import { PROTOCOL_VERSION, type SlotId } from '../shared/constants';
+import { dist2, yawTo } from '../shared/math';
 import {
   decodeSnapshot,
   type C2S,
@@ -37,6 +38,10 @@ export class Bot {
   snapTimes: number[] = [];
   /** Sunucudan gelen toplam bayt (bant genişliği ölçümü için). */
   bytesIn = 0;
+  /** Çaylak yapay zekâsı durumu: kendi çaylağım ve paltoların yığılma noktaları. */
+  kidId = 0;
+  kidStack = -1;
+  piles = new Map<number, { x: number; z: number }>();
   events: GameEvent[] = [];
   wheel: { stack: number; q: string; phrases: Array<{ i: number; text: string }> } | null = null;
   result: SceneResult | null = null;
@@ -48,6 +53,7 @@ export class Bot {
   pongs = 0;
   private waiters: Array<{ pred: () => boolean; resolve: () => void }> = [];
   private timer: NodeJS.Timeout | null = null;
+  private pingTimer: NodeJS.Timeout | null = null;
   private seq = 0;
 
   constructor(
@@ -68,11 +74,14 @@ export class Bot {
       this.ws.binaryType = 'arraybuffer';
       this.ws.on('open', () => {
         this.send({ t: 'hello', v: version, name: this.name, sid: this.sid, host: this.hostToken });
+        // gerçek istemci gibi 2 sn'de bir ping: sunucu 45 sn sessiz bağlantıyı kapatır
+        this.pingTimer = setInterval(() => this.send({ t: 'ping', c: Date.now() }), 2000);
         resolve();
       });
       this.ws.on('error', reject);
       this.ws.on('close', () => {
         this.closed = true;
+        if (this.pingTimer) clearInterval(this.pingTimer);
         this.check();
       });
       this.ws.on('message', (data, isBinary) => {
@@ -119,6 +128,7 @@ export class Bot {
       case 'evs':
         this.events.push(...m.list);
         if (this.events.length > 4000) this.events.splice(0, 2000);
+        for (const e of m.list) this.trackKid(e);
         break;
       case 'wheel':
         this.wheel = m;
@@ -139,6 +149,20 @@ export class Bot {
       case 'err':
         this.err = m.msg;
         break;
+    }
+  }
+
+  private trackKid(e: GameEvent): void {
+    if (e.k === 'burst') this.piles.set(Number(e.stack), { x: Number(e.x), z: Number(e.z) });
+    else if (e.k === 'spawn') {
+      const d = e.def as { id: number; type: string; player?: number; stack: number };
+      if (d.type === 'kid' && d.player === this.id) {
+        this.kidId = d.id;
+        this.kidStack = d.stack;
+      }
+    } else if (e.k === 'despawn' && Number(e.id) === this.kidId) {
+      this.kidId = 0;
+      this.kidStack = -1;
     }
   }
 
@@ -194,6 +218,16 @@ export class Bot {
     let yaw = 0;
     this.timer = setInterval(() => {
       t += 1 / hz;
+      if (this.kidId && this.phase === 'playing') {
+        // çaylak: paltonun yanına koş, yanına varınca E'ye basılı tut
+        const kid = this.snap?.chars.find((c) => c.id === this.kidId);
+        const pile = this.piles.get(this.kidStack);
+        if (kid && pile) {
+          const d = dist2(kid.x, kid.z, pile.x, pile.z);
+          this.input({ mx: 0, mz: d > 1.1 ? 1 : 0, yaw: yawTo(kid.x, kid.z, pile.x, pile.z), run: d > 3, use: d < 1.7 });
+        }
+        return;
+      }
       const slots = this.mySlots();
       if (slots.length === 0 || this.phase !== 'playing') return;
       const msg: Omit<InputMsg, 't' | 'seq'> = {};
@@ -226,6 +260,7 @@ export class Bot {
 
   close(): void {
     this.stopAutoplay();
+    if (this.pingTimer) clearInterval(this.pingTimer);
     try {
       this.ws.close();
     } catch {

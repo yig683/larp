@@ -15,7 +15,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "bots": "tsx tools/bots-cli.ts",
-    "shots": "tsx tools/shots.ts"
+    "shots": "tsx tools/shots.ts",
+    "e2e": "tsx tools/e2e.ts"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "0.21.0",

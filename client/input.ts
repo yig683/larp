@@ -33,6 +33,8 @@ export class Input {
   private wheel = 0;
   private lmb = false;
   private rmbEdge = 0;
+  /** Tokat basışı mesaj gönderilene kadar saklanır (düşük fps'te 170 ms'lik pencere kaçmasın). */
+  private slapPending = false;
   yaw = 0;
   headYaw = 0;
   headPitch = 0;
@@ -321,9 +323,12 @@ export class Input {
     const now = performance.now();
     if (this.rmbEdge > 0) {
       this.rmbEdge = 0;
-      if (this.group === 'hands') this.slapUntil = now + 170;
+      if (this.group === 'hands') {
+        this.slapUntil = now + 170;
+        this.slapPending = true;
+      }
     }
-    const slapOn = now < this.slapUntil;
+    const slapOn = this.slapPending || now < this.slapUntil;
     const mk = (s: 0 | 1): HandInput => ({
       x: this.hand[s]!.x,
       y: this.hand[s]!.y,
@@ -338,5 +343,10 @@ export class Input {
 
   nextSeq(): number {
     return this.seq++;
+  }
+
+  /** Girdi mesajı gerçekten gönderildi: kenar olayları (tokat) tüketilir. */
+  sent(): void {
+    this.slapPending = false;
   }
 }
